@@ -24,18 +24,15 @@
 
 package io.airbyte.scheduler.temporal;
 
-import com.google.common.base.Preconditions;
 import io.airbyte.config.IntegrationLauncherConfig;
 import io.airbyte.config.JobGetSpecConfig;
-import io.airbyte.config.JobOutput;
+import io.airbyte.config.StandardGetSpecOutput;
 import io.airbyte.workers.DefaultGetSpecWorker;
-import io.airbyte.workers.JobStatus;
-import io.airbyte.workers.OutputAndStatus;
 import io.airbyte.workers.WorkerConstants;
+import io.airbyte.workers.WorkerException;
 import io.airbyte.workers.process.AirbyteIntegrationLauncher;
 import io.airbyte.workers.process.IntegrationLauncher;
 import io.airbyte.workers.process.ProcessBuilderFactory;
-import io.airbyte.workers.wrappers.JobOutputGetSpecWorker;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
@@ -52,7 +49,7 @@ import org.slf4j.MDC;
 public interface SpecWorkflow {
 
   @WorkflowMethod
-  JobOutput run(IntegrationLauncherConfig launcherConfig);
+  StandardGetSpecOutput run(IntegrationLauncherConfig launcherConfig) throws TemporalJobException;
 
   class WorkflowImpl implements SpecWorkflow {
 
@@ -63,7 +60,7 @@ public interface SpecWorkflow {
     private final SpecActivity activity = Workflow.newActivityStub(SpecActivity.class, options);
 
     @Override
-    public JobOutput run(IntegrationLauncherConfig launcherConfig) {
+    public StandardGetSpecOutput run(IntegrationLauncherConfig launcherConfig) throws TemporalJobException {
       return activity.run(launcherConfig);
     }
 
@@ -73,7 +70,7 @@ public interface SpecWorkflow {
   interface SpecActivity {
 
     @ActivityMethod
-    JobOutput run(IntegrationLauncherConfig launcherConfig);
+    StandardGetSpecOutput run(IntegrationLauncherConfig launcherConfig) throws TemporalJobException;
 
   }
 
@@ -89,7 +86,7 @@ public interface SpecWorkflow {
       this.workspaceRoot = workspaceRoot;
     }
 
-    public JobOutput run(IntegrationLauncherConfig launcherConfig) {
+    public StandardGetSpecOutput run(IntegrationLauncherConfig launcherConfig) throws TemporalJobException {
       try {
         // todo (cgardens) - there are 2 sources of truth for job path. we need to reduce this down to one,
         // once we are fully on temporal.
@@ -105,14 +102,9 @@ public interface SpecWorkflow {
             new AirbyteIntegrationLauncher(launcherConfig.getJobId(), launcherConfig.getAttemptId().intValue(), launcherConfig.getDockerImage(), pbf);
 
         final JobGetSpecConfig jobGetSpecConfig = new JobGetSpecConfig().withDockerImage(launcherConfig.getDockerImage());
-        final OutputAndStatus<JobOutput> run = new JobOutputGetSpecWorker(new DefaultGetSpecWorker(integrationLauncher))
-            .run(jobGetSpecConfig, jobRoot);
-        if (run.getStatus() == JobStatus.SUCCEEDED) {
-          Preconditions.checkState(run.getOutput().isPresent());
-          return run.getOutput().get();
-        } else {
-          throw new TemporalJobException();
-        }
+        return new DefaultGetSpecWorker(integrationLauncher).run(jobGetSpecConfig, jobRoot);
+      } catch (WorkerException e) {
+        throw new TemporalJobException(e);
       } catch (Exception e) {
         throw new RuntimeException("Spec job failed with an exception", e);
       }

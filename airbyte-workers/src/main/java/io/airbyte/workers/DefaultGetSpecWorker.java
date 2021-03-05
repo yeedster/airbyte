@@ -60,7 +60,7 @@ public class DefaultGetSpecWorker implements GetSpecWorker {
   }
 
   @Override
-  public OutputAndStatus<StandardGetSpecOutput> run(JobGetSpecConfig config, Path jobRoot) {
+  public StandardGetSpecOutput run(JobGetSpecConfig config, Path jobRoot) throws WorkerException {
     try {
       process = integrationLauncher.spec(jobRoot).start();
 
@@ -83,19 +83,16 @@ public class DefaultGetSpecWorker implements GetSpecWorker {
       int exitCode = process.exitValue();
       if (exitCode == 0) {
         if (spec.isEmpty()) {
-          LOGGER.error("integration failed to output a spec struct.");
-          return new OutputAndStatus<>(JobStatus.FAILED);
+          throw new WorkerException("integration failed to output a spec struct.");
         }
 
-        return new OutputAndStatus<>(JobStatus.SUCCEEDED, new StandardGetSpecOutput().withSpecification(spec.get()));
+        return new StandardGetSpecOutput().withSpecification(spec.get());
 
       } else {
-        LOGGER.error("Spec job subprocess finished with exit code {}", exitCode);
-        return new OutputAndStatus<>(JobStatus.FAILED);
+        throw new WorkerException(String.format("Spec job subprocess finished with exit code %s", exitCode));
       }
     } catch (Exception e) {
-      LOGGER.error("Error while getting spec from image {}: {}", config.getDockerImage(), e);
-      return new OutputAndStatus<>(JobStatus.FAILED);
+      throw new WorkerException(String.format("Error while getting spec from image %s: %s", config.getDockerImage(), e));
     }
 
   }

@@ -24,15 +24,13 @@
 
 package io.airbyte.scheduler.temporal;
 
-import io.airbyte.commons.functional.CheckedSupplier;
 import io.airbyte.config.IntegrationLauncherConfig;
 import io.airbyte.config.JobCheckConnectionConfig;
 import io.airbyte.config.JobGetSpecConfig;
-import io.airbyte.config.JobOutput;
 import io.airbyte.config.StandardCheckConnectionInput;
+import io.airbyte.config.StandardCheckConnectionOutput;
+import io.airbyte.config.StandardGetSpecOutput;
 import io.airbyte.scheduler.temporal.TemporalUtils.TemporalJobType;
-import io.airbyte.workers.JobStatus;
-import io.airbyte.workers.OutputAndStatus;
 import io.temporal.client.WorkflowClient;
 
 public class TemporalClient {
@@ -43,31 +41,23 @@ public class TemporalClient {
     this.client = client;
   }
 
-  public OutputAndStatus<JobOutput> submitGetSpec(long jobId, int attempt, JobGetSpecConfig config) {
+  public StandardGetSpecOutput submitGetSpec(long jobId, int attempt, JobGetSpecConfig config) throws TemporalJobException {
     final IntegrationLauncherConfig launcherConfig = new IntegrationLauncherConfig()
         .withJobId(jobId)
         .withAttemptId((long) attempt)
         .withDockerImage(config.getDockerImage());
-    return toOutputAndStatus(() -> getWorkflowStub(SpecWorkflow.class, TemporalJobType.GET_SPEC).run(launcherConfig));
+    return getWorkflowStub(SpecWorkflow.class, TemporalJobType.GET_SPEC).run(launcherConfig);
 
   }
 
-  public OutputAndStatus<JobOutput> submitCheckConnection(long jobId, int attempt, JobCheckConnectionConfig config) {
+  public StandardCheckConnectionOutput submitCheckConnection(long jobId, int attempt, JobCheckConnectionConfig config) throws TemporalJobException {
     final StandardCheckConnectionInput input = new StandardCheckConnectionInput().withConnectionConfiguration(config.getConnectionConfiguration());
     final IntegrationLauncherConfig launcherConfig = new IntegrationLauncherConfig()
         .withJobId(jobId)
         .withAttemptId((long) attempt)
         .withDockerImage(config.getDockerImage());
 
-    return toOutputAndStatus(() -> getWorkflowStub(CheckConnectionWorkflow.class, TemporalJobType.CHECK_CONNECTION).run(launcherConfig, input));
-  }
-
-  private OutputAndStatus<JobOutput> toOutputAndStatus(CheckedSupplier<JobOutput, TemporalJobException> supplier) {
-    try {
-      return new OutputAndStatus<>(JobStatus.SUCCEEDED, supplier.get());
-    } catch (TemporalJobException e) {
-      return new OutputAndStatus<>(JobStatus.FAILED);
-    }
+    return getWorkflowStub(CheckConnectionWorkflow.class, TemporalJobType.CHECK_CONNECTION).run(launcherConfig, input);
   }
 
   private <T> T getWorkflowStub(Class<T> workflowClass, TemporalJobType jobType) {

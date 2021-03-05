@@ -27,9 +27,12 @@ package io.airbyte.scheduler.temporal;
 import io.airbyte.commons.functional.CheckedSupplier;
 import io.airbyte.config.JobConfig.ConfigType;
 import io.airbyte.config.JobOutput;
+import io.airbyte.config.StandardCheckConnectionOutput;
+import io.airbyte.config.StandardGetSpecOutput;
 import io.airbyte.scheduler.Job;
 import io.airbyte.scheduler.temporal.TemporalUtils.TemporalJobType;
 import io.airbyte.scheduler.worker_run.WorkerRun;
+import io.airbyte.workers.JobStatus;
 import io.airbyte.workers.OutputAndStatus;
 import java.nio.file.Path;
 
@@ -52,10 +55,17 @@ public class TemporalWorkerRunFactory {
     final TemporalJobType temporalJobType = toTemporalJobType(job.getConfigType());
     return switch (job.getConfigType()) {
       case GET_SPEC -> () -> {
-        return temporalClient.submitGetSpec(job.getId(), attemptId, job.getConfig().getGetSpec());
+        return toOutputAndStatus(() -> {
+          final StandardGetSpecOutput output = temporalClient.submitGetSpec(job.getId(), attemptId, job.getConfig().getGetSpec());
+          return new JobOutput().withGetSpec(output);
+        });
       };
       case CHECK_CONNECTION_SOURCE, CHECK_CONNECTION_DESTINATION -> () -> {
-        return temporalClient.submitCheckConnection(job.getId(), attemptId, job.getConfig().getCheckConnection());
+        return toOutputAndStatus(() -> {
+          final StandardCheckConnectionOutput output =
+              temporalClient.submitCheckConnection(job.getId(), attemptId, job.getConfig().getCheckConnection());
+          return new JobOutput().withCheckConnection(output);
+        });
       };
       default -> throw new IllegalArgumentException("Does not support job type: " + temporalJobType);
     };
@@ -68,6 +78,14 @@ public class TemporalWorkerRunFactory {
       case DISCOVER_SCHEMA -> TemporalJobType.DISCOVER_SCHEMA;
       case SYNC, RESET_CONNECTION -> TemporalJobType.SYNC;
     };
+  }
+
+  private OutputAndStatus<JobOutput> toOutputAndStatus(CheckedSupplier<JobOutput, TemporalJobException> supplier) {
+    try {
+      return new OutputAndStatus<>(JobStatus.SUCCEEDED, supplier.get());
+    } catch (TemporalJobException e) {
+      return new OutputAndStatus<>(JobStatus.FAILED);
+    }
   }
 
 }

@@ -24,20 +24,17 @@
 
 package io.airbyte.scheduler.temporal;
 
-import com.google.common.base.Preconditions;
 import io.airbyte.config.IntegrationLauncherConfig;
-import io.airbyte.config.JobOutput;
 import io.airbyte.config.StandardCheckConnectionInput;
+import io.airbyte.config.StandardCheckConnectionOutput;
 import io.airbyte.workers.DefaultCheckConnectionWorker;
-import io.airbyte.workers.JobStatus;
-import io.airbyte.workers.OutputAndStatus;
 import io.airbyte.workers.WorkerConstants;
+import io.airbyte.workers.WorkerException;
 import io.airbyte.workers.process.AirbyteIntegrationLauncher;
 import io.airbyte.workers.process.IntegrationLauncher;
 import io.airbyte.workers.process.ProcessBuilderFactory;
 import io.airbyte.workers.protocols.airbyte.AirbyteStreamFactory;
 import io.airbyte.workers.protocols.airbyte.DefaultAirbyteStreamFactory;
-import io.airbyte.workers.wrappers.JobOutputCheckConnectionWorker;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
@@ -54,7 +51,8 @@ import org.slf4j.MDC;
 public interface CheckConnectionWorkflow {
 
   @WorkflowMethod
-  JobOutput run(IntegrationLauncherConfig launcherConfig, StandardCheckConnectionInput connectionConfiguration) throws TemporalJobException;
+  StandardCheckConnectionOutput run(IntegrationLauncherConfig launcherConfig, StandardCheckConnectionInput connectionConfiguration)
+      throws TemporalJobException;
 
   class WorkflowImpl implements CheckConnectionWorkflow {
 
@@ -65,7 +63,8 @@ public interface CheckConnectionWorkflow {
     private final CheckConnectionActivity activity = Workflow.newActivityStub(CheckConnectionActivity.class, options);
 
     @Override
-    public JobOutput run(IntegrationLauncherConfig launcherConfig, StandardCheckConnectionInput connectionConfiguration) throws TemporalJobException {
+    public StandardCheckConnectionOutput run(IntegrationLauncherConfig launcherConfig, StandardCheckConnectionInput connectionConfiguration)
+        throws TemporalJobException {
       return activity.run(launcherConfig, connectionConfiguration);
     }
 
@@ -75,7 +74,8 @@ public interface CheckConnectionWorkflow {
   interface CheckConnectionActivity {
 
     @ActivityMethod
-    JobOutput run(IntegrationLauncherConfig launcherConfig, StandardCheckConnectionInput connectionConfiguration) throws TemporalJobException;
+    StandardCheckConnectionOutput run(IntegrationLauncherConfig launcherConfig, StandardCheckConnectionInput connectionConfiguration)
+        throws TemporalJobException;
 
   }
 
@@ -91,7 +91,8 @@ public interface CheckConnectionWorkflow {
       this.workspaceRoot = workspaceRoot;
     }
 
-    public JobOutput run(IntegrationLauncherConfig launcherConfig, StandardCheckConnectionInput connectionConfiguration) throws TemporalJobException {
+    public StandardCheckConnectionOutput run(IntegrationLauncherConfig launcherConfig, StandardCheckConnectionInput connectionConfiguration)
+        throws TemporalJobException {
       try {
         // todo (cgardens) - there are 2 sources of truth for job path. we need to reduce this down to one,
         // once we are fully on temporal.
@@ -106,17 +107,9 @@ public interface CheckConnectionWorkflow {
         final IntegrationLauncher integrationLauncher =
             new AirbyteIntegrationLauncher(launcherConfig.getJobId(), launcherConfig.getAttemptId().intValue(), launcherConfig.getDockerImage(), pbf);
         final AirbyteStreamFactory streamFactory = new DefaultAirbyteStreamFactory();
-        final OutputAndStatus<JobOutput> run =
-            new JobOutputCheckConnectionWorker(new DefaultCheckConnectionWorker(integrationLauncher, streamFactory)).run(connectionConfiguration,
-                jobRoot);
-        if (run.getStatus() == JobStatus.SUCCEEDED) {
-          Preconditions.checkState(run.getOutput().isPresent());
-          LOGGER.info("job output {}", run.getOutput().get());
-          return run.getOutput().get();
-        } else {
-          throw new TemporalJobException();
-        }
-
+        return new DefaultCheckConnectionWorker(integrationLauncher, streamFactory).run(connectionConfiguration, jobRoot);
+      } catch (WorkerException e) {
+        throw new TemporalJobException(e);
       } catch (Exception e) {
         throw new RuntimeException("Check connection job failed with an exception", e);
       }

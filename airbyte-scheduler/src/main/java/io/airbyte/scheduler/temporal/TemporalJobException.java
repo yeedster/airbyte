@@ -28,4 +28,8 @@ public class TemporalJobException extends Exception {
 
   public TemporalJobException() {}
 
+  public TemporalJobException(Throwable cause) {
+    super(cause);
+  }
+
 }
