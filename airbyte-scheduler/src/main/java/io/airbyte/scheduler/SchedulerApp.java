@@ -156,7 +156,7 @@ public class SchedulerApp {
       return new DockerProcessBuilderFactory(
           configs.getWorkspaceRoot(),
           configs.getWorkspaceDockerMount(),
-          configs.getLocalDockerMount(),
+          configs.getLocalRoot(),
           configs.getDockerNetwork());
     }
   }

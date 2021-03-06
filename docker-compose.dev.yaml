@@ -1,15 +1,41 @@
 version: "3.7"
 
 services:
-  # hook in case we need to add init behavior
-  # every root service (no depends_on) should depend on init
-  init:
+  init-dev:
+    image: airbyte/init:${VERSION}
     container_name: init-dev
-  seed:
-    container_name: airbyte-data-seed-dev
-  scheduler:
-    container_name: airbyte-scheduler-dev
-  server:
-    container_name: airbyte-server-dev
-  webapp:
-    container_name: airbyte-webapp-dev
+    command: >-
+      /bin/sh -c "
+        ./scripts/create_mount_directories.sh /dev_parent ${DEV_ROOT_PARENT_HACK} ${DEV_ROOT}/workspace ;
+        ./scripts/create_mount_directories.sh /dev_parent ${DEV_ROOT_PARENT_HACK} ${DEV_ROOT}/config ;
+        ./scripts/create_mount_directories.sh /dev_parent ${DEV_ROOT_PARENT_HACK} ${DEV_ROOT}/db
+      "
+    environment:
+      - DEV_ROOT=${DEV_ROOT}
+      - DEV_ROOT_PARENT_HACK=${DEV_ROOT_PARENT_HACK}
+    volumes:
+      - ${DEV_ROOT_PARENT_HACK}:/dev_parent
+
+volumes:
+  workspace:
+    name: ${WORKSPACE_DOCKER_MOUNT}
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${DEV_ROOT}/workspace
+  config:
+    name: ${CONFIG_DOCKER_MOUNT}
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${DEV_ROOT}/config
+  db:
+    name: ${DATABASE_DOCKER_MOUNT}
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${DEV_ROOT}/db
+

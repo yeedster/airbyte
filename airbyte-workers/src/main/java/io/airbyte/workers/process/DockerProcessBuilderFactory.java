@@ -51,14 +51,14 @@ public class DockerProcessBuilderFactory implements ProcessBuilderFactory {
 
   private final String workspaceMountSource;
   private final Path workspaceRoot;
-  private final String localMountSource;
+  private final Path localRoot;
   private final String networkName;
   private final Path imageExistsScriptPath;
 
-  public DockerProcessBuilderFactory(Path workspaceRoot, String workspaceMountSource, String localMountSource, String networkName) {
+  public DockerProcessBuilderFactory(Path workspaceRoot, String workspaceMountSource, Path localRoot, String networkName) {
     this.workspaceRoot = workspaceRoot;
     this.workspaceMountSource = workspaceMountSource;
-    this.localMountSource = localMountSource;
+    this.localRoot = localRoot;
     this.networkName = networkName;
     this.imageExistsScriptPath = prepareImageExistsScript();
   }
@@ -93,7 +93,7 @@ public class DockerProcessBuilderFactory implements ProcessBuilderFactory {
             "-v",
             String.format("%s:%s", workspaceMountSource, DATA_MOUNT_DESTINATION),
             "-v",
-            String.format("%s:%s", localMountSource, LOCAL_MOUNT_DESTINATION),
+            String.format("%s:%s", localRoot, LOCAL_MOUNT_DESTINATION),
             "-w",
             rebasePath(jobRoot).toString(),
             "--network",

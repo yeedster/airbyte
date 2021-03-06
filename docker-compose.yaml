@@ -1,17 +1,15 @@
 version: "3.7"
 
 services:
-  # hook in case we need to add init behavior
-  # every root service (no depends_on) should depend on init
   init:
     image: airbyte/init:${VERSION}
     container_name: init
-    command: /bin/sh -c "./scripts/create_mount_directories.sh /local_parent ${HACK_LOCAL_ROOT_PARENT} ${LOCAL_ROOT}"
+    command: /bin/sh -c "./scripts/create_mount_directories.sh /local_parent ${LOCAL_ROOT_PARENT_HACK} ${LOCAL_ROOT}"
     environment:
       - LOCAL_ROOT=${LOCAL_ROOT}
-      - HACK_LOCAL_ROOT_PARENT=${HACK_LOCAL_ROOT_PARENT}
+      - LOCAL_ROOT_PARENT_HACK=${LOCAL_ROOT_PARENT_HACK}
     volumes:
-      - ${HACK_LOCAL_ROOT_PARENT}:/local_parent
+      - ${LOCAL_ROOT_PARENT_HACK}:/local_parent
   db:
     image: airbyte/db:${VERSION}
     container_name: airbyte-db
@@ -27,7 +25,7 @@ services:
     # Pre-populate the volume if it is empty.
     # See: https://docs.docker.com/storage/volumes/#populate-a-volume-using-a-container
     volumes:
-      - data:/app/seed
+      - config:/app/seed
   scheduler:
     image: airbyte/scheduler:${VERSION}
     container_name: airbyte-scheduler
@@ -40,7 +38,7 @@ services:
       - WAIT_HOSTS=db:5432
       - WORKSPACE_ROOT=${WORKSPACE_ROOT}
       - WORKSPACE_DOCKER_MOUNT=${WORKSPACE_DOCKER_MOUNT}
-      - LOCAL_DOCKER_MOUNT=${LOCAL_DOCKER_MOUNT}
+      - LOCAL_ROOT=${LOCAL_ROOT}
       - CONFIG_ROOT=${CONFIG_ROOT}
       - TRACKING_STRATEGY=${TRACKING_STRATEGY}
       - AIRBYTE_VERSION=${VERSION}
@@ -49,7 +47,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - workspace:${WORKSPACE_ROOT}
       - ${LOCAL_ROOT}:${LOCAL_ROOT}
-      - data:${CONFIG_ROOT}
+      - config:${CONFIG_ROOT}
   server:
     image: airbyte/server:${VERSION}
     container_name: airbyte-server
@@ -69,7 +67,7 @@ services:
       - 8001:8001
     volumes:
       - workspace:${WORKSPACE_ROOT}
-      - data:${CONFIG_ROOT}
+      - config:${CONFIG_ROOT}
   webapp:
     image: airbyte/webapp:${VERSION}
     container_name: airbyte-webapp
@@ -82,24 +80,24 @@ services:
       - IS_DEMO=${IS_DEMO:-}
       - PAPERCUPS_STORYTIME=${PAPERCUPS_STORYTIME:-}
       - TRACKING_STRATEGY=${TRACKING_STRATEGY}
-  temporal:
-    image: temporalio/auto-setup:1.7.0
-    container_name: temporal
-    ports:
-      - 7233:7233
-    environment:
-      - DB=postgresql
-      - DB_PORT=5432
-      - POSTGRES_USER=${DATABASE_USER}
-      - POSTGRES_PWD=${DATABASE_PASSWORD}
-      - POSTGRES_SEEDS=db
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
-    volumes:
-      - ./temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+#  temporal:
+#    image: temporalio/auto-setup:1.7.0
+#    container_name: temporal
+#    ports:
+#      - 7233:7233
+#    environment:
+#      - DB=postgresql
+#      - DB_PORT=5432
+#      - POSTGRES_USER=${DATABASE_USER}
+#      - POSTGRES_PWD=${DATABASE_PASSWORD}
+#      - POSTGRES_SEEDS=db
+#      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+#    volumes:
+#      - ./temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
 volumes:
   workspace:
     name: ${WORKSPACE_DOCKER_MOUNT}
-  data:
-    name: ${DATA_DOCKER_MOUNT}
+  config:
+    name: ${CONFIG_DOCKER_MOUNT}
   db:
-    name: ${DB_DOCKER_MOUNT}
+    name: ${DATABASE_DOCKER_MOUNT}

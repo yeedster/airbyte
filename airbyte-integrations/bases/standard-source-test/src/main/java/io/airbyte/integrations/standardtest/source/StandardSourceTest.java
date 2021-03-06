@@ -191,7 +191,7 @@ public abstract class StandardSourceTest {
     pbf = new DockerProcessBuilderFactory(
         workspaceRoot,
         workspaceRoot.toString(),
-        localRoot.toString(),
+        localRoot,
         "host");
   }
 

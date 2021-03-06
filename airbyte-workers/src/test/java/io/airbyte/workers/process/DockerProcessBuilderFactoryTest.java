@@ -42,7 +42,7 @@ class DockerProcessBuilderFactoryTest {
   public void testImageExists() throws IOException, WorkerException {
     Path workspaceRoot = Files.createTempDirectory(Files.createDirectories(TEST_ROOT), "pbf");
 
-    final DockerProcessBuilderFactory pbf = new DockerProcessBuilderFactory(workspaceRoot, "", "", "");
+    final DockerProcessBuilderFactory pbf = new DockerProcessBuilderFactory(workspaceRoot, "", Files.createTempDirectory("test"), "");
     assertTrue(pbf.checkImageExists("airbyte/scheduler:dev"));
   }
 
@@ -50,7 +50,7 @@ class DockerProcessBuilderFactoryTest {
   public void testImageDoesNotExist() throws IOException, WorkerException {
     Path workspaceRoot = Files.createTempDirectory(Files.createDirectories(TEST_ROOT), "pbf");
 
-    final DockerProcessBuilderFactory pbf = new DockerProcessBuilderFactory(workspaceRoot, "", "", "");
+    final DockerProcessBuilderFactory pbf = new DockerProcessBuilderFactory(workspaceRoot, "", Files.createTempDirectory("test"), "");
     assertFalse(pbf.checkImageExists("airbyte/fake:0.1.2"));
   }
 

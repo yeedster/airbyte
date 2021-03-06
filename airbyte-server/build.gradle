@@ -33,7 +33,7 @@ application {
 }
 
 Properties env = new Properties()
-rootProject.file('.env.dev').withInputStream { env.load(it) }
+rootProject.file('.env').withInputStream { env.load(it) }
 
 run {
     // default for running on local machine.

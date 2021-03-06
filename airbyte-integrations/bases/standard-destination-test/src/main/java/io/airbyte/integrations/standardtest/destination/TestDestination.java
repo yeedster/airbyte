@@ -211,7 +211,7 @@ public abstract class TestDestination {
 
     setup(testEnv);
 
-    pbf = new DockerProcessBuilderFactory(workspaceRoot, workspaceRoot.toString(), localRoot.toString(), "host");
+    pbf = new DockerProcessBuilderFactory(workspaceRoot, workspaceRoot.toString(), localRoot, "host");
   }
 
   @AfterEach

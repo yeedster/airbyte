@@ -96,7 +96,7 @@ public class SingerStripeSourceTest {
         JOB_ID,
         JOB_ATTEMPT,
         IMAGE_NAME,
-        new DockerProcessBuilderFactory(workspaceRoot, workspaceRoot.toString(), "", "host"));
+        new DockerProcessBuilderFactory(workspaceRoot, workspaceRoot.toString(), Files.createTempDirectory("test"), "host"));
   }
 
   private static String getEmail(int number) {
