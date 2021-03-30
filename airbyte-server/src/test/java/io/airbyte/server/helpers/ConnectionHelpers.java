@@ -41,6 +41,7 @@ import io.airbyte.config.StandardSyncSchedule;
 import io.airbyte.protocol.models.CatalogHelpers;
 import io.airbyte.protocol.models.ConfiguredAirbyteCatalog;
 import io.airbyte.protocol.models.ConfiguredAirbyteStream;
+import io.airbyte.protocol.models.ConfiguredAirbyteStream.DestinationSyncMode;
 import io.airbyte.protocol.models.Field;
 import io.airbyte.protocol.models.Field.JsonSchemaPrimitive;
 import java.util.Collections;
@@ -58,7 +59,7 @@ public class ConnectionHelpers {
     return new StandardSync()
         .withConnectionId(connectionId)
         .withName("presto to hudi")
-        .withDefaultNamespace("presto_to_hudi")
+        .withPrefix("presto_to_hudi")
         .withStatus(StandardSync.Status.ACTIVE)
         .withCatalog(generateBasicConfiguredAirbyteCatalog())
         .withSourceId(sourceId)
@@ -71,7 +72,7 @@ public class ConnectionHelpers {
     return new StandardSync()
         .withConnectionId(connectionId)
         .withName("presto to hudi")
-        .withDefaultNamespace("presto_to_hudi")
+        .withPrefix("presto_to_hudi")
         .withStatus(StandardSync.Status.ACTIVE)
         .withCatalog(generateBasicConfiguredAirbyteCatalog())
         .withSourceId(UUID.randomUUID())
@@ -93,7 +94,7 @@ public class ConnectionHelpers {
         .sourceId(sourceId)
         .destinationId(destinationId)
         .name("presto to hudi")
-        .defaultNamespace("presto_to_hudi")
+        .prefix("presto_to_hudi")
         .status(ConnectionStatus.ACTIVE)
         .schedule(generateBasicSchedule())
         .syncCatalog(ConnectionHelpers.generateBasicApiCatalog());
@@ -125,7 +126,8 @@ public class ConnectionHelpers {
     final ConfiguredAirbyteStream stream = new ConfiguredAirbyteStream()
         .withStream(generateBasicAirbyteStream())
         .withCursorField(Lists.newArrayList(FIELD_NAME))
-        .withSyncMode(io.airbyte.protocol.models.SyncMode.INCREMENTAL);
+        .withSyncMode(io.airbyte.protocol.models.SyncMode.INCREMENTAL)
+        .withDestinationSyncMode(DestinationSyncMode.APPEND);
     return new ConfiguredAirbyteCatalog().withStreams(Collections.singletonList(stream));
   }
 
@@ -146,6 +148,8 @@ public class ConnectionHelpers {
     return new AirbyteStreamConfiguration()
         .syncMode(SyncMode.INCREMENTAL)
         .cursorField(Lists.newArrayList(FIELD_NAME))
+        .destinationSyncMode(io.airbyte.api.model.DestinationSyncMode.APPEND)
+        .primaryKey(Collections.emptyList())
         .aliasName(Names.toAlphanumericAndUnderscore(STREAM_NAME))
         .selected(true);
   }

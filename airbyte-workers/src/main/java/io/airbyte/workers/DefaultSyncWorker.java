@@ -32,7 +32,6 @@ import io.airbyte.config.StandardTapConfig;
 import io.airbyte.config.StandardTargetConfig;
 import io.airbyte.config.State;
 import io.airbyte.protocol.models.AirbyteMessage;
-import io.airbyte.protocol.models.SyncMode;
 import io.airbyte.workers.normalization.NormalizationRunner;
 import io.airbyte.workers.protocols.Destination;
 import io.airbyte.workers.protocols.Mapper;
@@ -50,7 +49,7 @@ public class DefaultSyncWorker implements SyncWorker {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultSyncWorker.class);
 
-  private final long jobId;
+  private final String jobId;
   private final int attempt;
   private final Source<AirbyteMessage> source;
   private final Mapper<AirbyteMessage> mapper;
@@ -61,7 +60,7 @@ public class DefaultSyncWorker implements SyncWorker {
   private final AtomicBoolean cancelled;
 
   public DefaultSyncWorker(
-                           final long jobId,
+                           final String jobId,
                            final int attempt,
                            final Source<AirbyteMessage> source,
                            final Mapper<AirbyteMessage> mapper,
@@ -80,13 +79,12 @@ public class DefaultSyncWorker implements SyncWorker {
   }
 
   @Override
-  public OutputAndStatus<StandardSyncOutput> run(StandardSyncInput syncInput, Path jobRoot) {
+  public StandardSyncOutput run(StandardSyncInput syncInput, Path jobRoot) throws WorkerException {
     long startTime = System.currentTimeMillis();
 
     LOGGER.info("configured sync modes: {}", syncInput.getCatalog().getStreams()
         .stream()
-        .collect(Collectors.toMap(s -> s.getStream().getName(), s -> s.getSyncMode() != null ? s.getSyncMode() : SyncMode.FULL_REFRESH)));
-
+        .collect(Collectors.toMap(s -> s.getStream().getName(), s -> String.format("%s - %s", s.getSyncMode(), s.getDestinationSyncMode()))));
     final StandardTapConfig tapConfig = WorkerUtils.syncToTapConfig(syncInput);
     final StandardTargetConfig targetConfig = WorkerUtils.syncToTargetConfig(syncInput);
     targetConfig.setCatalog(mapper.mapCatalog(targetConfig.getCatalog()));
@@ -106,9 +104,7 @@ public class DefaultSyncWorker implements SyncWorker {
       }
 
     } catch (Exception e) {
-      LOGGER.error("Sync worker failed.", e);
-
-      return new OutputAndStatus<>(JobStatus.FAILED, null);
+      throw new WorkerException("Sync worker failed.", e);
     }
 
     try (normalizationRunner) {
@@ -119,8 +115,7 @@ public class DefaultSyncWorker implements SyncWorker {
         throw new WorkerException("Normalization Failed.");
       }
     } catch (Exception e) {
-      LOGGER.error("Normalization Failed.", e);
-      return new OutputAndStatus<>(JobStatus.FAILED, null);
+      throw new WorkerException("Normalization Failed.", e);
     }
 
     final StandardSyncSummary summary = new StandardSyncSummary()
@@ -132,6 +127,10 @@ public class DefaultSyncWorker implements SyncWorker {
 
     LOGGER.info("sync summary: {}", summary);
 
+    if (cancelled.get()) {
+      throw new WorkerException("Sync was cancelled.");
+    }
+
     final StandardSyncOutput output = new StandardSyncOutput().withStandardSyncSummary(summary);
     messageTracker.getOutputState().ifPresent(capturedState -> {
       final State state = new State()
@@ -139,12 +138,34 @@ public class DefaultSyncWorker implements SyncWorker {
       output.withState(state);
     });
 
-    return new OutputAndStatus<>(cancelled.get() ? JobStatus.FAILED : JobStatus.SUCCEEDED, output);
+    return output;
   }
 
   @Override
   public void cancel() {
+    LOGGER.info("Cancelling sync worker...");
     cancelled.set(true);
+
+    LOGGER.info("Cancelling source...");
+    try {
+      source.cancel();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    LOGGER.info("Cancelling destination...");
+    try {
+      destination.cancel();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    LOGGER.info("Cancelling normalization runner...");
+    try {
+      normalizationRunner.close();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
 }

@@ -83,7 +83,7 @@ public class ConnectionsHandler {
     final StandardSync standardSync = new StandardSync()
         .withConnectionId(connectionId)
         .withName(connectionCreate.getName() != null ? connectionCreate.getName() : "default")
-        .withDefaultNamespace(connectionCreate.getDefaultNamespace())
+        .withPrefix(connectionCreate.getPrefix())
         .withSourceId(connectionCreate.getSourceId())
         .withDestinationId(connectionCreate.getDestinationId())
         .withStatus(toPersistenceStatus(connectionCreate.getStatus()));
@@ -129,12 +129,11 @@ public class ConnectionsHandler {
   private Builder<String, Object> generateMetadata(final StandardSync standardSync, final StandardSyncSchedule standardSyncSchedule) {
     final Builder<String, Object> metadata = ImmutableMap.builder();
 
-    final UUID sourceConnectionId = standardSync.getSourceId();
-    final UUID destinationConnectionId = standardSync.getDestinationId();
+    final UUID connectionId = standardSync.getConnectionId();
     final StandardSourceDefinition sourceDefinition = configRepository
-        .getSourceDefinitionFromConnection(sourceConnectionId);
+        .getSourceDefinitionFromConnection(connectionId);
     final StandardDestinationDefinition destinationDefinition = configRepository
-        .getDestinationDefinitionFromConnection(destinationConnectionId);
+        .getDestinationDefinitionFromConnection(connectionId);
 
     metadata.put("connector_source", sourceDefinition.getName());
     metadata.put("connector_source_definition_id", sourceDefinition.getSourceDefinitionId());
@@ -155,7 +154,7 @@ public class ConnectionsHandler {
   public ConnectionRead updateConnection(ConnectionUpdate connectionUpdate) throws ConfigNotFoundException, IOException, JsonValidationException {
     // retrieve sync
     final StandardSync persistedSync = configRepository.getStandardSync(connectionUpdate.getConnectionId())
-        .withDefaultNamespace(connectionUpdate.getDefaultNamespace())
+        .withPrefix(connectionUpdate.getPrefix())
         .withCatalog(CatalogConverter.toProtocol(connectionUpdate.getSyncCatalog()))
         .withStatus(toPersistenceStatus(connectionUpdate.getStatus()));
 
@@ -218,7 +217,7 @@ public class ConnectionsHandler {
 
   public void deleteConnection(ConnectionRead connectionRead) throws ConfigNotFoundException, IOException, JsonValidationException {
     final ConnectionUpdate connectionUpdate = new ConnectionUpdate()
-        .defaultNamespace(connectionRead.getDefaultNamespace())
+        .prefix(connectionRead.getPrefix())
         .connectionId(connectionRead.getConnectionId())
         .syncCatalog(connectionRead.getSyncCatalog())
         .schedule(connectionRead.getSchedule())
@@ -260,7 +259,7 @@ public class ConnectionsHandler {
         .status(toApiStatus(standardSync.getStatus()))
         .schedule(apiSchedule)
         .name(standardSync.getName())
-        .defaultNamespace(standardSync.getDefaultNamespace())
+        .prefix(standardSync.getPrefix())
         .syncCatalog(CatalogConverter.toApi(standardSync.getCatalog()));
   }
 

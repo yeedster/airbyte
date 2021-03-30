@@ -11,9 +11,6 @@ gradleEnterprise {
     }
 }
 
-import groovy.io.FileType
-import java.nio.file.Files
-
 rootProject.name = 'airbyte'
 
 include ':airbyte-analytics'
@@ -40,7 +37,10 @@ include ':airbyte-json-validation'
 include ':airbyte-migration'
 include ':airbyte-protocol:models'
 include ':airbyte-queue'
-include ':airbyte-scheduler'
+include ':airbyte-scheduler:app'
+include ':airbyte-scheduler:client'
+include ':airbyte-scheduler:models'
+include ':airbyte-scheduler:persistence'
 include ':airbyte-server'
 include ':airbyte-webapp'
 include ':airbyte-workers'
@@ -49,6 +49,7 @@ include ':airbyte-test-utils'
 include ':tools:code-generator'
 
 if(!System.getenv().containsKey("CORE_ONLY")) {
+    println "Building all of Airbyte."
     // include all connector projects
     def integrationsPath = rootDir.toPath().resolve('airbyte-integrations/connectors')
     println integrationsPath
@@ -59,4 +60,6 @@ if(!System.getenv().containsKey("CORE_ONLY")) {
             include ":airbyte-integrations:connectors:${dir.getFileName()}"
         }
     }
+} else {
+    println "Building Airbyte Core."
 }

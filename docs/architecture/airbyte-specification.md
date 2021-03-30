@@ -3,7 +3,7 @@
 ## Key Takeaways
 
 * The specification is Docker-based; this allows a developer to write a connector in any language they want. All they have to do is put that code in a Docker container that adheres to the interface and protocol described below.
-  * We currently provide templates to make this even easier for those who prefer to work in python or java. These templates allow the developer skip any Docker setup so that they can just implement code against well-defined interfaces in their language of choice.
+  * We currently provide templates to make this even easier for those who prefer to work in python or java. These templates allow the developer to skip any Docker setup so that they can just implement code against well-defined interfaces in their language of choice.
 * The specification is designed to work as a CLI. The Airbyte app is built on top of this CLI.
 * The specification defines a standard interface for implementing data integrations: Sources and Destinations.
 * The specification provides a structured stdout / stdin message passing standard for data transport.
@@ -169,7 +169,7 @@ read(Config, AirbyteCatalog, State) -> Stream<AirbyteMessage>
 * Input:
   1. `config` - A configuration JSON object that has been validated using the `ConnectorSpecification`.
   2. `catalog` - An `ConfiguredAirbyteCatalog`. This `catalog` should be constructed from the `catalog` returned by the `discover` command. To convert an `AirbyteStream` to a `ConfiguredAirbyteStream` copy the `AirbyteStream` into the stream field of the `ConfiguredAirbyteStream`. Any additional configurations can be specified in the `ConfiguredAirbyteStream`. More details on how this is configured in the [catalog documentation](catalog.md). This catalog will be used in the `read` command to both select what data is transferred and how it is replicated.
-  3. `state` - A JSON object. This object is only ever written or read by the source, so it is a JSON blob with whatever information is necessary to keep track of how much of the data source has already been read. Because Airbyte currently only supports [Full Refresh](full-refresh.md), this state object is purely cosmetic. It will become more important when Airbyte beings to support incremental syncs.
+  3. `state` - A JSON object. This object is only ever written or read by the source, so it is a JSON blob with whatever information is necessary to keep track of how much of the data source has already been read. This is important whenever we need to replicate data with Incremental sync modes such as [Incremental Append](incremental-append.md) or [Incremental Deduped History](incremental-deduped-history.md). Note that this is not currently based on the state of data existing on the destination side.
 * Output:
   1. `message stream` - A stream of `AirbyteRecordMessage`s and `AirbyteStateMessage`s piped to stdout.
 * This command reads data from the underlying data source and converts it into `AirbyteRecordMessage`.
@@ -217,7 +217,7 @@ For the sake of brevity, we will not re-describe `spec` and `check`. They are ex
 
 * All messages passed to and from connectors must be wrapped in an `AirbyteMesage` envelope and serialized as JSON. The JsonSchema specification for these messages can be found [here](https://github.com/airbytehq/airbyte/blob/master/airbyte-protocol/models/src/main/resources/airbyte_protocol/airbyte_protocol.yaml).
 * Even if a record is wrapped in an `AirbyteMessage` it will only be processed if it appropriate for the given command. e.g. If a source `read` action includes AirbyteMessages in its stream of type Catalog for instance, these messages will be ignored as the `read` interface only expects `AirbyteRecordMessage`s and `AirbyteStateMessage`s. The appropriate `AirbyteMessage` types have been described in each command above.
-* **ALL** actions are allowed to return `AirbyteLogMessage`s on stdout. For brevity, we have not mentioned these log messages in the description of each action, but they are always allowed. An `AirbyteLogMessage` wraps any useful logging that the connector wants to provide. These logs will written to Airbyte's log files and output to the console.
+* **ALL** actions are allowed to return `AirbyteLogMessage`s on stdout. For brevity, we have not mentioned these log messages in the description of each action, but they are always allowed. An `AirbyteLogMessage` wraps any useful logging that the connector wants to provide. These logs will be written to Airbyte's log files and output to the console.
 * I/O:
   * Connectors receive arguments on the command line via JSON files. `e.g. --catalog catalog.json`
   * They read `AirbyteMessage`s from stdin. The destination `write` action is the only command that consumes `AirbyteMessage`s.
