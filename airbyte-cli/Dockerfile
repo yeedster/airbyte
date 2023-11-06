@@ -1,4 +1,4 @@
-FROM golang:1.14
+FROM golang:1.18
 
 ENV GO111MODULE=on
 RUN go get -u github.com/danielgtaylor/restish@4aa30c3f866cf4a551c64ea3d4c6eefea72cf2bc
